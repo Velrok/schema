@@ -47,18 +47,6 @@
   [matchers :- [CoercionMatcher]]
   (fn [schema] (first (keep #(% schema) matchers))))
 
-(defn string->keyword [s]
-  (if (string? s) (keyword s) s))
-
-(defn keyword-enum-matcher [schema]
-  (when (and (instance? #+clj schema.core.EnumSchema #+cljs s/EnumSchema schema)
-             (every? keyword? (.-vs ^schema.core.EnumSchema schema)))
-    string->keyword))
-
-(defn set-matcher [schema]
-  (if (instance? #+clj clojure.lang.APersistentSet #+cljs cljs.core.PersistentHashSet schema)
-    (fn [x] (if (sequential? x) (set x) x))))
-
 (defn safe
   "Take a single-arg function f, and return a single-arg function that acts as identity
    if f throws an exception, and like f otherwise.  Useful because coercers are not explicitly
@@ -78,11 +66,30 @@
 
 (def edn-read-string #+clj edn/read-string #+cljs reader/read-string)
 
+(defn string->keyword [s]
+  (if (string? s) (keyword s) s))
+
 (def string->num (safe edn-read-string))
 (def string->int (safe edn-read-string))
 #+clj (def string->int-jvm (safe #(safe-long-cast (edn-read-string %))))
 #+clj (def string->long-jvm (safe #(safe-long-cast (edn-read-string %))))
 #+clj (def string->double-jvm (safe #(Double/parseDouble %)))
+
+(defn pred-enum-matcher
+  [schema pred conversion-fn]
+  (when (and (instance? #+clj schema.core.EnumSchema #+cljs s/EnumSchema schema)
+             (every? pred (.-vs ^schema.core.EnumSchema schema)))
+    conversion-fn))
+
+(defn keyword-enum-matcher [schema]
+  (pred-enum-matcher schema keyword? string->keyword))
+
+(defn int-enum-matcher [schema]
+  (pred-enum-matcher schema integer? #+cljs string->int #+clj string->int-jvm))
+
+(defn set-matcher [schema]
+  (if (instance? #+clj clojure.lang.APersistentSet #+cljs cljs.core.PersistentHashSet schema)
+    (fn [x] (if (sequential? x) (set x) x))))
 
 (let [coercions (merge {s/Keyword string->keyword}
                        #+clj {clojure.lang.Keyword string->keyword
