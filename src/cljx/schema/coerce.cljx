@@ -91,29 +91,33 @@
   (if (instance? #+clj clojure.lang.APersistentSet #+cljs cljs.core.PersistentHashSet schema)
     (fn [x] (if (sequential? x) (set x) x))))
 
-(let [coercions (merge {s/Keyword string->keyword}
-                       #+clj {clojure.lang.Keyword string->keyword
-                              s/Int safe-long-cast
-                              Long safe-long-cast
-                              Double double})]
-  (defn json-coercion-matcher
+(def json-coercion-matcher-coercions
+  (merge {s/Keyword string->keyword}
+         #+clj {clojure.lang.Keyword string->keyword
+                s/Int safe-long-cast
+                Long safe-long-cast
+                Double double}))
+
+(defn json-coercion-matcher
     "A matcher that coerces keywords and keyword enums from strings, and longs and doubles
      from numbers on the JVM (without losing precision)"
     [schema]
-    (or (coercions schema)
+    (or (json-coercion-matcher-coercions schema)
         (keyword-enum-matcher schema)
-        (set-matcher schema))))
+        (set-matcher schema)))
 
-(let [coercions (merge {s/Keyword string->keyword
-                        s/Num string->num
-                        s/Int string->int}
-                       #+clj {clojure.lang.Keyword string->keyword
-                              s/Int string->int-jvm
-                              Long string->long-jvm
-                              Double string->double-jvm})]
-  (defn string-coercion-matcher
+(def string-coercion-matcher-coercions
+  (merge {s/Keyword string->keyword
+          s/Num string->num
+          s/Int string->int}
+         #+clj {clojure.lang.Keyword string->keyword
+                s/Int string->int-jvm
+                Long string->long-jvm
+                Double string->double-jvm}))
+
+(defn string-coercion-matcher
     "A matcher that coerces keywords, keyword enums, s/Num and s/Int,
      and long and doubles (JVM only) from strings."
     [schema]
-    (or (coercions schema)
-        (keyword-enum-matcher schema))))
+    (or (string-coercion-matcher-coercions schema)
+        (keyword-enum-matcher schema)))
