@@ -76,6 +76,14 @@
                l
                x)))))
 
+(def edn-read-string #+clj edn/read-string #+cljs reader/read-string)
+
+(def string->num (safe edn-read-string))
+(def string->int (safe edn-read-string))
+#+clj (def string->int-jvm (safe #(safe-long-cast (edn-read-string %))))
+#+clj (def string->long-jvm (safe #(safe-long-cast (edn-read-string %))))
+#+clj (def string->double-jvm (safe #(Double/parseDouble %)))
+
 (let [coercions (merge {s/Keyword string->keyword}
                        #+clj {clojure.lang.Keyword string->keyword
                               s/Int safe-long-cast
@@ -89,15 +97,13 @@
         (keyword-enum-matcher schema)
         (set-matcher schema))))
 
-(def edn-read-string #+clj edn/read-string #+cljs reader/read-string)
-
 (let [coercions (merge {s/Keyword string->keyword
-                        s/Num (safe edn-read-string)
-                        s/Int (safe edn-read-string)}
+                        s/Num string->num
+                        s/Int string->int}
                        #+clj {clojure.lang.Keyword string->keyword
-                              s/Int (safe #(safe-long-cast (edn-read-string %)))
-                              Long (safe #(safe-long-cast (edn-read-string %)))
-                              Double (safe #(Double/parseDouble %))})]
+                              s/Int string->int-jvm
+                              Long string->long-jvm
+                              Double string->double-jvm})]
   (defn string-coercion-matcher
     "A matcher that coerces keywords, keyword enums, s/Num and s/Int,
      and long and doubles (JVM only) from strings."
